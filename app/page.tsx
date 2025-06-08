@@ -6,7 +6,15 @@ import { type Schema } from "@/amplify/data/resource";
 import outputs from "@/amplify_outputs.json";
 import "./../app/app.css";
 
-Amplify.configure(outputs);
+// Configuración sin módulo de autenticación
+const config = {
+  ...outputs,
+  Auth: {
+    Cognito: null
+  }
+};
+
+Amplify.configure(config);
 const client = generateClient<Schema>();
 
 export default function AuthPage() {
@@ -43,28 +51,26 @@ export default function AuthPage() {
     setError(null);
     
     try {
-      // 1. Verificar si el usuario ya existe
+      // Verificar si usuario existe
       const { data: existingUsers } = await client.models.User.list({
         filter: { username: { eq: formData.username } }
       });
       
       if (existingUsers.length > 0) {
-        throw new Error("El nombre de usuario ya está en uso");
+        throw new Error("El nombre de usuario ya está registrado");
       }
 
-      // 2. Crear nuevo usuario en la base de datos
+      // Crear nuevo usuario
       const { data: newUser, errors } = await client.models.User.create({
         username: formData.username,
         email: formData.email,
         firstName: formData.givenName,
         lastName: formData.familyName,
-        password: formData.password, // Nota: En producción, esto debería estar encriptado
-        status: 'active'
+        password: formData.password
       });
 
       if (errors) throw new Error(errors[0].message);
 
-      // 3. Establecer como autenticado
       setAuthState("signedIn");
       setUser(newUser);
 
@@ -81,29 +87,28 @@ export default function AuthPage() {
     setError(null);
     
     try {
-      // 1. Buscar usuario en la base de datos
+      // Buscar usuario
       const { data: users, errors } = await client.models.User.list({
         filter: { 
           username: { eq: formData.username },
-          password: { eq: formData.password } // Nota: Esto es inseguro, solo para demostración
+          password: { eq: formData.password }
         }
       });
 
       if (errors) throw new Error(errors[0].message);
-      if (users.length === 0) throw new Error("Credenciales incorrectas");
+      if (users.length === 0) throw new Error("Usuario o contraseña incorrectos");
 
-      // 2. Actualizar último inicio de sesión
+      // Actualizar último login
       await client.models.User.update({
         id: users[0].id,
         lastLogin: new Date().toISOString()
       });
 
-      // 3. Establecer como autenticado
       setAuthState("signedIn");
       setUser(users[0]);
 
     } catch (err: any) {
-      setError(err.message || "Credenciales incorrectas");
+      setError(err.message || "Error al iniciar sesión");
     } finally {
       setIsLoading(false);
     }
@@ -112,6 +117,13 @@ export default function AuthPage() {
   const handleSignOut = () => {
     setAuthState("signIn");
     setUser(null);
+    setFormData({
+      username: "",
+      password: "",
+      email: "",
+      givenName: "",
+      familyName: ""
+    });
   };
 
   return (
@@ -157,6 +169,7 @@ export default function AuthPage() {
                   value={formData.username}
                   onChange={handleInputChange}
                   required
+                  minLength={3}
                 />
                 <label>Nombre de usuario</label>
               </div>
@@ -168,7 +181,7 @@ export default function AuthPage() {
                   value={formData.password}
                   onChange={handleInputChange}
                   required
-                  minLength={8}
+                  minLength={6}
                 />
                 <label>Contraseña</label>
               </div>
@@ -281,7 +294,6 @@ export default function AuthPage() {
             <div className="user-details">
               <p><span>Nombre:</span> {user?.firstName} {user?.lastName}</p>
               <p><span>Email:</span> {user?.email}</p>
-              <p><span>Estado:</span> {user?.status}</p>
               {user?.lastLogin && (
                 <p><span>Último acceso:</span> {new Date(user.lastLogin).toLocaleString()}</p>
               )}
