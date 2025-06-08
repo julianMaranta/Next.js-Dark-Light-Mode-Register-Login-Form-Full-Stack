@@ -12,6 +12,7 @@ const schema = a.schema({
       status: a.enum(['active', 'suspended', 'deleted']),
       lastLogin: a.datetime(),
       roles: a.string().array().default(['user']),
+      profile: a.hasOne('UserProfile', 'userId') // Relación explícita con UserProfile
     })
     .authorization((allow) => [
       allow.owner(),
@@ -19,14 +20,13 @@ const schema = a.schema({
       allow.groups(['admins']),
     ]),
 
-  // Ejemplo de otra entidad relacionada
   UserProfile: a
     .model({
       userId: a.id().required(),
       bio: a.string(),
       website: a.url(),
       location: a.string(),
-      user: a.belongsTo('User', 'userId'),
+      user: a.belongsTo('User', 'userId'), // Relación inversa
     })
     .authorization((allow) => [
       allow.owner(),
@@ -40,9 +40,7 @@ export const data = defineData({
   schema,
   authorizationModes: {
     defaultAuthorizationMode: "userPool",
-    // Opcional: mantener API key para desarrollo
-    apiKeyAuthorizationMode: {
-      expiresInDays: 7,
-    },
+    // Configuración alternativa sin expiración
+    apiKeyAuthorizationMode: process.env.NODE_ENV === 'development' ? {} : undefined
   },
 });
