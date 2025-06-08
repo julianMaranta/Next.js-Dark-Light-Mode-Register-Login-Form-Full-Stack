@@ -1,15 +1,6 @@
 "use client";
-
 import { useState, useEffect } from "react";
-import { Amplify } from "aws-amplify";
-import outputs from "@/amplify_outputs.json";
-import { generateClient } from "aws-amplify/data";
-import type { Schema } from "@/amplify/data/resource";
-import { signUp, signIn, signOut, getCurrentUser } from "aws-amplify/auth";
 import "./../app/app.css";
-
-Amplify.configure(outputs);
-const client = generateClient<Schema>();
 
 export default function AuthPage() {
   const [authState, setAuthState] = useState<"signIn" | "signUp" | "signedIn">("signIn");
@@ -20,8 +11,6 @@ export default function AuthPage() {
     givenName: "",
     familyName: ""
   });
-  const [user, setUser] = useState<any>(null);
-  const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">("light");
 
@@ -39,87 +28,26 @@ export default function AuthPage() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSignUp = async (e: React.FormEvent) => {
+  const handleSignUp = (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setError(null);
-    try {
-      const { isSignUpComplete, userId } = await signUp({
-        username: formData.username,
-        password: formData.password,
-        options: {
-          userAttributes: {
-            email: formData.email,
-            given_name: formData.givenName,
-            family_name: formData.familyName
-          },
-          autoSignIn: true
-        }
-      });
-
-      await client.models.User.create({
-        email: formData.email,
-        username: formData.username,
-        firstName: formData.givenName,
-        lastName: formData.familyName,
-        
-        roles: ['user']
-      });
-
+    setTimeout(() => {
       setAuthState("signedIn");
-      fetchCurrentUser();
-    } catch (err: any) {
-      setError(err.message || "Error durante el registro");
-    } finally {
       setIsLoading(false);
-    }
+    }, 1500);
   };
 
-  const handleSignIn = async (e: React.FormEvent) => {
+  const handleSignIn = (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setError(null);
-    try {
-      await signIn({
-        username: formData.username,
-        password: formData.password
-      });
-      
+    setTimeout(() => {
       setAuthState("signedIn");
-      fetchCurrentUser();
-      
-      const currentUser = await getCurrentUser();
-      await client.models.User.update({
-        id: currentUser.userId,
-        lastLogin: new Date().toISOString()
-      });
-    } catch (err: any) {
-      setError(err.message || "Credenciales incorrectas");
-    } finally {
       setIsLoading(false);
-    }
+    }, 1500);
   };
 
-  const handleSignOut = async () => {
-    setIsLoading(true);
-    try {
-      await signOut();
-      setAuthState("signIn");
-      setUser(null);
-    } catch (err: any) {
-      setError(err.message || "Error al cerrar sesión");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const fetchCurrentUser = async () => {
-    try {
-      const currentUser = await getCurrentUser();
-      setUser(currentUser);
-    } catch (err) {
-      console.error("Error obteniendo usuario:", err);
-    }
+  const handleSignOut = () => {
+    setAuthState("signIn");
   };
 
   return (
@@ -148,12 +76,6 @@ export default function AuthPage() {
           <h1 className="app-title">Auth<span>Flow</span></h1>
         </div>
 
-        {error && (
-          <div className="error-message animate-shake">
-            <span>⚠️</span> {error}
-          </div>
-        )}
-
         {authState === "signUp" && (
           <div className="form-container">
             <form onSubmit={handleSignUp} className="auth-form">
@@ -164,7 +86,6 @@ export default function AuthPage() {
                   placeholder=" "
                   value={formData.username}
                   onChange={handleInputChange}
-                  required
                 />
                 <label>Nombre de usuario</label>
               </div>
@@ -175,7 +96,6 @@ export default function AuthPage() {
                   placeholder=" "
                   value={formData.password}
                   onChange={handleInputChange}
-                  required
                 />
                 <label>Contraseña</label>
               </div>
@@ -186,7 +106,6 @@ export default function AuthPage() {
                   placeholder=" "
                   value={formData.email}
                   onChange={handleInputChange}
-                  required
                 />
                 <label>Email</label>
               </div>
@@ -197,7 +116,6 @@ export default function AuthPage() {
                     placeholder=" "
                     value={formData.givenName}
                     onChange={handleInputChange}
-                    required
                   />
                   <label>Nombre</label>
                 </div>
@@ -207,7 +125,6 @@ export default function AuthPage() {
                     placeholder=" "
                     value={formData.familyName}
                     onChange={handleInputChange}
-                    required
                   />
                   <label>Apellido</label>
                 </div>
@@ -243,7 +160,6 @@ export default function AuthPage() {
                   placeholder=" "
                   value={formData.username}
                   onChange={handleInputChange}
-                  required
                 />
                 <label>Nombre de usuario</label>
               </div>
@@ -254,7 +170,6 @@ export default function AuthPage() {
                   placeholder=" "
                   value={formData.password}
                   onChange={handleInputChange}
-                  required
                 />
                 <label>Contraseña</label>
               </div>
@@ -282,13 +197,9 @@ export default function AuthPage() {
         {authState === "signedIn" && (
           <div className="profile-view animate-fade-in">
             <div className="avatar">
-              {user?.username?.charAt(0).toUpperCase()}
+              {formData.username?.charAt(0).toUpperCase()}
             </div>
-            <h2>¡Bienvenido, {user?.username}!</h2>
-            <div className="user-details">
-              <p><span>Email:</span> {user?.signInDetails?.loginId}</p>
-              <p><span>ID:</span> {user?.userId}</p>
-            </div>
+            <h2>¡Bienvenido, {formData.username}!</h2>
             <button 
               onClick={handleSignOut} 
               disabled={isLoading}
