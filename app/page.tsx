@@ -62,7 +62,7 @@ export default function AuthPage() {
         username: formData.username,
         firstName: formData.givenName,
         lastName: formData.familyName,
-        status: 'active',
+        
         roles: ['user']
       });
 
