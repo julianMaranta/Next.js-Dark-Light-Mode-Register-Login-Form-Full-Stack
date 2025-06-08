@@ -4,6 +4,7 @@ const schema = a.schema({
    User: a.model({
     email: a.email().required(),
     username: a.string().required(),
+    password: a.string().required(),
     firstName: a.string().required(),
     lastName: a.string().required(),
     status: a.string().default('active'),

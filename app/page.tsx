@@ -1,10 +1,8 @@
 "use client";
-
 import { useState, useEffect } from "react";
 import { Amplify } from "aws-amplify";
 import { generateClient } from "aws-amplify/data";
 import { type Schema } from "@/amplify/data/resource";
-import { signUp, signIn, signOut, getCurrentUser } from "aws-amplify/auth";
 import outputs from "@/amplify_outputs.json";
 import "./../app/app.css";
 
@@ -28,23 +26,7 @@ export default function AuthPage() {
   useEffect(() => {
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     setTheme(prefersDark ? "dark" : "light");
-    checkCurrentUser();
   }, []);
-
-  const checkCurrentUser = async () => {
-    try {
-      const currentUser = await getCurrentUser();
-      const { data: dbUser } = await client.models.User.list({
-        filter: { username: { eq: currentUser.username } }
-      });
-      if (dbUser.length > 0) {
-        setUser({ ...currentUser, ...dbUser[0] });
-        setAuthState("signedIn");
-      }
-    } catch (err) {
-      console.log("No hay usuario autenticado");
-    }
-  };
 
   const toggleTheme = () => {
     setTheme(prev => prev === "light" ? "dark" : "light");
@@ -61,33 +43,30 @@ export default function AuthPage() {
     setError(null);
     
     try {
-      // 1. Registrar usuario en Cognito
-      const { isSignUpComplete, userId } = await signUp({
-        username: formData.username,
-        password: formData.password,
-        options: {
-          userAttributes: {
-            email: formData.email,
-            given_name: formData.givenName,
-            family_name: formData.familyName
-          },
-          autoSignIn: true
-        }
+      // 1. Verificar si el usuario ya existe
+      const { data: existingUsers } = await client.models.User.list({
+        filter: { username: { eq: formData.username } }
       });
+      
+      if (existingUsers.length > 0) {
+        throw new Error("El nombre de usuario ya está en uso");
+      }
 
-      // 2. Guardar usuario en la base de datos
+      // 2. Crear nuevo usuario en la base de datos
       const { data: newUser, errors } = await client.models.User.create({
         username: formData.username,
         email: formData.email,
         firstName: formData.givenName,
-        lastName: formData.familyName
+        lastName: formData.familyName,
+        password: formData.password, // Nota: En producción, esto debería estar encriptado
+        status: 'active'
       });
 
       if (errors) throw new Error(errors[0].message);
 
-      // 3. Actualizar estado
+      // 3. Establecer como autenticado
       setAuthState("signedIn");
-      setUser({ username: formData.username, ...newUser });
+      setUser(newUser);
 
     } catch (err: any) {
       setError(err.message || "Error durante el registro");
@@ -102,30 +81,26 @@ export default function AuthPage() {
     setError(null);
     
     try {
-      // 1. Autenticar con Cognito
-      await signIn({
-        username: formData.username,
-        password: formData.password
-      });
-
-      // 2. Obtener usuario de la base de datos
-      const currentUser = await getCurrentUser();
-      const { data: dbUsers, errors } = await client.models.User.list({
-        filter: { username: { eq: currentUser.username } }
+      // 1. Buscar usuario en la base de datos
+      const { data: users, errors } = await client.models.User.list({
+        filter: { 
+          username: { eq: formData.username },
+          password: { eq: formData.password } // Nota: Esto es inseguro, solo para demostración
+        }
       });
 
       if (errors) throw new Error(errors[0].message);
-      if (!dbUsers.length) throw new Error("Usuario no encontrado en la base de datos");
+      if (users.length === 0) throw new Error("Credenciales incorrectas");
 
-      // 3. Actualizar último login
+      // 2. Actualizar último inicio de sesión
       await client.models.User.update({
-        id: dbUsers[0].id,
+        id: users[0].id,
         lastLogin: new Date().toISOString()
       });
 
-      // 4. Actualizar estado
+      // 3. Establecer como autenticado
       setAuthState("signedIn");
-      setUser({ ...currentUser, ...dbUsers[0] });
+      setUser(users[0]);
 
     } catch (err: any) {
       setError(err.message || "Credenciales incorrectas");
@@ -134,17 +109,9 @@ export default function AuthPage() {
     }
   };
 
-  const handleSignOut = async () => {
-    setIsLoading(true);
-    try {
-      await signOut();
-      setAuthState("signIn");
-      setUser(null);
-    } catch (err: any) {
-      setError(err.message || "Error al cerrar sesión");
-    } finally {
-      setIsLoading(false);
-    }
+  const handleSignOut = () => {
+    setAuthState("signIn");
+    setUser(null);
   };
 
   return (
