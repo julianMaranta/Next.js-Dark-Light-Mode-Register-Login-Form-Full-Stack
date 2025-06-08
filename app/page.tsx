@@ -1,6 +1,15 @@
 "use client";
+
 import { useState, useEffect } from "react";
+import { Amplify } from "aws-amplify";
+import { generateClient } from "aws-amplify/data";
+import { type Schema } from "@/amplify/data/resource";
+import { signUp, signIn, signOut, getCurrentUser } from "aws-amplify/auth";
+import outputs from "@/amplify_outputs.json";
 import "./../app/app.css";
+
+Amplify.configure(outputs);
+const client = generateClient<Schema>();
 
 export default function AuthPage() {
   const [authState, setAuthState] = useState<"signIn" | "signUp" | "signedIn">("signIn");
@@ -11,13 +20,31 @@ export default function AuthPage() {
     givenName: "",
     familyName: ""
   });
+  const [user, setUser] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">("light");
 
   useEffect(() => {
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     setTheme(prefersDark ? "dark" : "light");
+    checkCurrentUser();
   }, []);
+
+  const checkCurrentUser = async () => {
+    try {
+      const currentUser = await getCurrentUser();
+      const { data: dbUser } = await client.models.User.list({
+        filter: { username: { eq: currentUser.username } }
+      });
+      if (dbUser.length > 0) {
+        setUser({ ...currentUser, ...dbUser[0] });
+        setAuthState("signedIn");
+      }
+    } catch (err) {
+      console.log("No hay usuario autenticado");
+    }
+  };
 
   const toggleTheme = () => {
     setTheme(prev => prev === "light" ? "dark" : "light");
@@ -28,26 +55,96 @@ export default function AuthPage() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSignUp = (e: React.FormEvent) => {
+  const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setTimeout(() => {
+    setError(null);
+    
+    try {
+      // 1. Registrar usuario en Cognito
+      const { isSignUpComplete, userId } = await signUp({
+        username: formData.username,
+        password: formData.password,
+        options: {
+          userAttributes: {
+            email: formData.email,
+            given_name: formData.givenName,
+            family_name: formData.familyName
+          },
+          autoSignIn: true
+        }
+      });
+
+      // 2. Guardar usuario en la base de datos
+      const { data: newUser, errors } = await client.models.User.create({
+        username: formData.username,
+        email: formData.email,
+        firstName: formData.givenName,
+        lastName: formData.familyName
+      });
+
+      if (errors) throw new Error(errors[0].message);
+
+      // 3. Actualizar estado
       setAuthState("signedIn");
+      setUser({ username: formData.username, ...newUser });
+
+    } catch (err: any) {
+      setError(err.message || "Error durante el registro");
+    } finally {
       setIsLoading(false);
-    }, 1500);
+    }
   };
 
-  const handleSignIn = (e: React.FormEvent) => {
+  const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setTimeout(() => {
+    setError(null);
+    
+    try {
+      // 1. Autenticar con Cognito
+      await signIn({
+        username: formData.username,
+        password: formData.password
+      });
+
+      // 2. Obtener usuario de la base de datos
+      const currentUser = await getCurrentUser();
+      const { data: dbUsers, errors } = await client.models.User.list({
+        filter: { username: { eq: currentUser.username } }
+      });
+
+      if (errors) throw new Error(errors[0].message);
+      if (!dbUsers.length) throw new Error("Usuario no encontrado en la base de datos");
+
+      // 3. Actualizar último login
+      await client.models.User.update({
+        id: dbUsers[0].id,
+        lastLogin: new Date().toISOString()
+      });
+
+      // 4. Actualizar estado
       setAuthState("signedIn");
+      setUser({ ...currentUser, ...dbUsers[0] });
+
+    } catch (err: any) {
+      setError(err.message || "Credenciales incorrectas");
+    } finally {
       setIsLoading(false);
-    }, 1500);
+    }
   };
 
-  const handleSignOut = () => {
-    setAuthState("signIn");
+  const handleSignOut = async () => {
+    setIsLoading(true);
+    try {
+      await signOut();
+      setAuthState("signIn");
+      setUser(null);
+    } catch (err: any) {
+      setError(err.message || "Error al cerrar sesión");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -76,6 +173,12 @@ export default function AuthPage() {
           <h1 className="app-title">Auth<span>Flow</span></h1>
         </div>
 
+        {error && (
+          <div className="error-message animate-shake">
+            <span>⚠️</span> {error}
+          </div>
+        )}
+
         {authState === "signUp" && (
           <div className="form-container">
             <form onSubmit={handleSignUp} className="auth-form">
@@ -86,6 +189,7 @@ export default function AuthPage() {
                   placeholder=" "
                   value={formData.username}
                   onChange={handleInputChange}
+                  required
                 />
                 <label>Nombre de usuario</label>
               </div>
@@ -96,6 +200,8 @@ export default function AuthPage() {
                   placeholder=" "
                   value={formData.password}
                   onChange={handleInputChange}
+                  required
+                  minLength={8}
                 />
                 <label>Contraseña</label>
               </div>
@@ -106,6 +212,7 @@ export default function AuthPage() {
                   placeholder=" "
                   value={formData.email}
                   onChange={handleInputChange}
+                  required
                 />
                 <label>Email</label>
               </div>
@@ -116,6 +223,7 @@ export default function AuthPage() {
                     placeholder=" "
                     value={formData.givenName}
                     onChange={handleInputChange}
+                    required
                   />
                   <label>Nombre</label>
                 </div>
@@ -125,6 +233,7 @@ export default function AuthPage() {
                     placeholder=" "
                     value={formData.familyName}
                     onChange={handleInputChange}
+                    required
                   />
                   <label>Apellido</label>
                 </div>
@@ -160,6 +269,7 @@ export default function AuthPage() {
                   placeholder=" "
                   value={formData.username}
                   onChange={handleInputChange}
+                  required
                 />
                 <label>Nombre de usuario</label>
               </div>
@@ -170,6 +280,7 @@ export default function AuthPage() {
                   placeholder=" "
                   value={formData.password}
                   onChange={handleInputChange}
+                  required
                 />
                 <label>Contraseña</label>
               </div>
@@ -197,9 +308,17 @@ export default function AuthPage() {
         {authState === "signedIn" && (
           <div className="profile-view animate-fade-in">
             <div className="avatar">
-              {formData.username?.charAt(0).toUpperCase()}
+              {user?.username?.charAt(0).toUpperCase()}
             </div>
-            <h2>¡Bienvenido, {formData.username}!</h2>
+            <h2>¡Bienvenido, {user?.username}!</h2>
+            <div className="user-details">
+              <p><span>Nombre:</span> {user?.firstName} {user?.lastName}</p>
+              <p><span>Email:</span> {user?.email}</p>
+              <p><span>Estado:</span> {user?.status}</p>
+              {user?.lastLogin && (
+                <p><span>Último acceso:</span> {new Date(user.lastLogin).toLocaleString()}</p>
+              )}
+            </div>
             <button 
               onClick={handleSignOut} 
               disabled={isLoading}
