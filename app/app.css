@@ -1,87 +1,469 @@
-/* Estilos base */
-.auth-container {
-  max-width: 500px;
-  margin: 2rem auto;
-  padding: 2rem;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+/* Variables de color */
+:root {
+  /* Colores modo claro */
+  --light-bg: #f5f7fa;
+  --light-card: #ffffff;
+  --light-text: #2d3748;
+  --light-primary: #4f46e5;
+  --light-secondary: #7c3aed;
+  --light-accent: #a78bfa;
+  --light-error: #ef4444;
+  
+  /* Colores modo oscuro */
+  --dark-bg: #1a202c;
+  --dark-card: #2d3748;
+  --dark-text: #f7fafc;
+  --dark-primary: #818cf8;
+  --dark-secondary: #a78bfa;
+  --dark-accent: #c4b5fd;
+  --dark-error: #fca5a5;
 }
 
-.auth-form {
+/* Estilos base */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  transition: background-color 0.3s, color 0.3s;
+}
+
+.app-container {
+  min-height: 100vh;
   display: flex;
-  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Temas */
+.app-container.light {
+  background-color: var(--light-bg);
+  color: var(--light-text);
+}
+
+.app-container.dark {
+  background-color: var(--dark-bg);
+  color: var(--dark-text);
+}
+
+/* Botón de cambio de tema mejorado */
+.theme-toggle-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 100;
+}
+
+.theme-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 50px;
+  transition: all 0.3s ease;
+}
+
+.theme-toggle:hover {
+  background: rgba(79, 70, 229, 0.1);
+}
+
+.dark .theme-toggle:hover {
+  background: rgba(129, 140, 248, 0.1);
+}
+
+.toggle-track {
+  width: 60px;
+  height: 30px;
+  border-radius: 15px;
+  padding: 3px;
+  display: flex;
+  align-items: center;
+  transition: all 0.3s ease;
+  background: linear-gradient(to right, var(--light-primary), var(--light-secondary));
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.dark .toggle-track {
+  background: linear-gradient(to right, var(--dark-primary), var(--dark-secondary));
+}
+
+.toggle-thumb {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  background-color: white;
+  transform: translateX(0);
+}
+
+.dark .toggle-thumb {
+  transform: translateX(30px);
+  background-color: var(--dark-card);
+}
+
+.toggle-thumb span {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.toggle-label {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--light-text);
+}
+
+.dark .toggle-label {
+  color: var(--dark-text);
+}
+
+/* Efectos de hover y focus */
+.theme-toggle:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.3);
+}
+
+.dark .theme-toggle:focus {
+  box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.3);
+}
+
+/* Contenedor principal */
+.auth-container {
+  width: 100%;
+  max-width: 450px;
+  padding: 2rem;
+  background: var(--light-card);
+  border-radius: 16px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  margin: 1rem;
+}
+
+.dark .auth-container {
+  background: var(--dark-card);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+}
+
+/* Logo y título */
+.logo-container {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.logo-animation {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 1rem;
+  background: linear-gradient(135deg, var(--light-primary), var(--light-secondary));
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  animation: pulse 2s infinite;
+}
+
+.dark .logo-animation {
+  background: linear-gradient(135deg, var(--dark-primary), var(--dark-secondary));
+}
+
+/* Reemplaza los estilos actuales del .app-title por estos: */
+.app-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--light-primary); /* Color principal en modo claro */
+  transition: color 0.3s ease;
+}
+
+.dark .app-title {
+  color: var(--dark-primary); /* Color principal en modo oscuro */
+}
+
+.app-title span {
+  font-weight: 300;
+  color: var(--light-secondary); /* Color secundario en modo claro */
+  transition: color 0.3s ease;
+}
+
+.dark .app-title span {
+  color: var(--dark-secondary); /* Color secundario en modo oscuro */
+}
+
+/* Formularios */
+.form-container {
+  opacity: 1;
+  transform: translateY(0);
+  transition: all 0.5s ease;
+}
+
+.form-container.signUp {
+  animation: slideIn 0.5s forwards;
+}
+
+.form-container.signIn {
+  animation: slideIn 0.5s forwards;
+}
+
+h2 {
+  text-align: center;
+  margin-bottom: 1.5rem;
+  color: var(--light-primary);
+}
+
+.dark h2 {
+  color: var(--dark-primary);
+}
+
+.input-group {
+  position: relative;
+  margin-bottom: 1.5rem;
+}
+
+.input-group input {
+  width: 100%;
+  padding: 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 1rem;
+  background-color: transparent;
+  color: inherit;
+}
+
+.dark .input-group input {
+  border-color: #4a5568;
+}
+
+.input-group input:focus {
+  outline: none;
+  border-color: var(--light-primary);
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
+}
+
+.dark .input-group input:focus {
+  border-color: var(--dark-primary);
+  box-shadow: 0 0 0 2px rgba(129, 140, 248, 0.3);
+}
+
+.input-group label {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  color: #718096;
+  transition: all 0.2s;
+  pointer-events: none;
+}
+
+.input-group input:focus + label,
+.input-group input:not(:placeholder-shown) + label {
+  top: -0.6rem;
+  left: 0.8rem;
+  font-size: 0.8rem;
+  background: var(--light-card);
+  padding: 0 0.3rem;
+  color: var(--light-primary);
+}
+
+.dark .input-group input:focus + label,
+.dark .input-group input:not(:placeholder-shown) + label {
+  background: var(--dark-card);
+  color: var(--dark-primary);
+}
+
+.name-fields {
+  display: flex;
   gap: 1rem;
 }
 
-.auth-form h2 {
-  text-align: center;
-  color: #333;
+.name-fields .input-group {
+  flex: 1;
 }
 
-.auth-form input {
-  padding: 0.75rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 1rem;
-}
-
-.auth-form button {
-  padding: 0.75rem;
-  background-color: #2563eb;
+button {
+  width: 100%;
+  padding: 1rem;
+  background: linear-gradient(to right, var(--light-primary), var(--light-secondary));
   color: white;
   border: none;
-  border-radius: 4px;
-  cursor: pointer;
+  border-radius: 8px;
   font-size: 1rem;
-  transition: background-color 0.3s;
-}
-
-.auth-form button:hover {
-  background-color: #1d4ed8;
-}
-
-.link-button {
-  background: none;
-  border: none;
-  color: #2563eb;
-  text-decoration: underline;
+  font-weight: 600;
   cursor: pointer;
+  margin-top: 0.5rem;
+  transition: all 0.3s;
+}
+
+.dark button {
+  background: linear-gradient(to right, var(--dark-primary), var(--dark-secondary));
+}
+
+button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);
+}
+
+.dark button:hover {
+  box-shadow: 0 4px 12px rgba(129, 140, 248, 0.3);
+}
+
+button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.auth-switch {
+  text-align: center;
+  margin-top: 1.5rem;
+  color: #718096;
+}
+
+.auth-switch button {
+  display: inline;
+  width: auto;
+  background: none;
+  color: var(--light-primary);
   padding: 0;
-  font-size: inherit;
+  margin: 0;
+  text-decoration: underline;
+  font-weight: 600;
 }
 
-.link-button:hover {
-  color: #1d4ed8;
+.dark .auth-switch button {
+  color: var(--dark-primary);
 }
 
+/* Vista de perfil */
 .profile-view {
   text-align: center;
+  animation: fadeIn 0.5s forwards;
 }
 
-.profile-view h2 {
-  color: #333;
+.avatar {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 1.5rem;
+  background: linear-gradient(135deg, var(--light-primary), var(--light-secondary));
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 2rem;
+  font-weight: bold;
 }
 
-.user-info {
+.dark .avatar {
+  background: linear-gradient(135deg, var(--dark-primary), var(--dark-secondary));
+}
+
+.user-details {
+  background: rgba(79, 70, 229, 0.1);
+  padding: 1.5rem;
+  border-radius: 12px;
   margin: 1.5rem 0;
-  padding: 1rem;
-  background: #f8f9fa;
-  border-radius: 4px;
+  text-align: left;
 }
 
+.dark .user-details {
+  background: rgba(129, 140, 248, 0.1);
+}
+
+.user-details p {
+  margin-bottom: 0.5rem;
+}
+
+.user-details span {
+  font-weight: 600;
+  color: var(--light-primary);
+}
+
+.dark .user-details span {
+  color: var(--dark-primary);
+}
+
+/* Mensajes de error */
 .error-message {
-  color: #dc2626;
-  background: #fee2e2;
-  padding: 0.75rem;
-  border-radius: 4px;
-  margin-bottom: 1rem;
+  background-color: var(--light-error);
+  color: white;
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.dark .error-message {
+  background-color: var(--dark-error);
+  color: #7f1d1d;
+}
+
+/* Spinner */
+.spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: white;
+  animation: spin 1s ease-in-out infinite;
+  margin: 0 auto;
+}
+
+.dark .spinner {
+  border-top-color: var(--dark-text);
+}
+
+/* Animaciones */
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-5px); }
+  40%, 80% { transform: translateX(5px); }
+}
+
+.animate-shake {
+  animation: shake 0.5s;
 }
 
 /* Responsive */
-@media (max-width: 600px) {
+@media (max-width: 480px) {
   .auth-container {
-    margin: 1rem;
     padding: 1.5rem;
+  }
+  
+  .name-fields {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .theme-toggle {
+    gap: 0.5rem;
+  }
+
+  .toggle-label {
+    font-size: 0.8rem;
   }
 }

@@ -1,12 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Amplify } from "aws-amplify";
 import outputs from "@/amplify_outputs.json";
 import { generateClient } from "aws-amplify/data";
 import type { Schema } from "@/amplify/data/resource";
 import { signUp, signIn, signOut, getCurrentUser } from "aws-amplify/auth";
-import "@aws-amplify/ui-react/styles.css";
 import "./../app/app.css";
 
 Amplify.configure(outputs);
@@ -23,15 +22,26 @@ export default function AuthPage() {
   });
   const [user, setUser] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [theme, setTheme] = useState<"light" | "dark">("light");
 
-  // Manejar cambios en el formulario
+  useEffect(() => {
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    setTheme(prefersDark ? "dark" : "light");
+  }, []);
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === "light" ? "dark" : "light");
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  // Registro de nuevo usuario
-  const handleSignUp = async () => {
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
     setError(null);
     try {
       const { isSignUpComplete, userId } = await signUp({
@@ -47,7 +57,6 @@ export default function AuthPage() {
         }
       });
 
-      // Crear registro en DynamoDB
       await client.models.User.create({
         email: formData.email,
         username: formData.username,
@@ -61,11 +70,14 @@ export default function AuthPage() {
       fetchCurrentUser();
     } catch (err: any) {
       setError(err.message || "Error durante el registro");
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  // Inicio de sesión
-  const handleSignIn = async () => {
+  const handleSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
     setError(null);
     try {
       await signIn({
@@ -76,29 +88,31 @@ export default function AuthPage() {
       setAuthState("signedIn");
       fetchCurrentUser();
       
-      // Actualizar último login
       const currentUser = await getCurrentUser();
       await client.models.User.update({
         id: currentUser.userId,
         lastLogin: new Date().toISOString()
       });
     } catch (err: any) {
-      setError(err.message || "Error durante el inicio de sesión");
+      setError(err.message || "Credenciales incorrectas");
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  // Cerrar sesión
   const handleSignOut = async () => {
+    setIsLoading(true);
     try {
       await signOut();
       setAuthState("signIn");
       setUser(null);
     } catch (err: any) {
       setError(err.message || "Error al cerrar sesión");
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  // Obtener usuario actual
   const fetchCurrentUser = async () => {
     try {
       const currentUser = await getCurrentUser();
@@ -108,98 +122,183 @@ export default function AuthPage() {
     }
   };
 
-  // Renderizar formulario de registro
-  const renderSignUpForm = () => (
-    <div className="auth-form">
-      <h2>Registro</h2>
-      <input
-        name="username"
-        placeholder="Nombre de usuario"
-        value={formData.username}
-        onChange={handleInputChange}
-      />
-      <input
-        name="password"
-        type="password"
-        placeholder="Contraseña"
-        value={formData.password}
-        onChange={handleInputChange}
-      />
-      <input
-        name="email"
-        type="email"
-        placeholder="Email"
-        value={formData.email}
-        onChange={handleInputChange}
-      />
-      <input
-        name="givenName"
-        placeholder="Nombre"
-        value={formData.givenName}
-        onChange={handleInputChange}
-      />
-      <input
-        name="familyName"
-        placeholder="Apellido"
-        value={formData.familyName}
-        onChange={handleInputChange}
-      />
-      <button onClick={handleSignUp}>Registrarse</button>
-      <p>
-        ¿Ya tienes cuenta?{" "}
-        <button className="link-button" onClick={() => setAuthState("signIn")}>
-          Inicia sesión
-        </button>
-      </p>
-    </div>
-  );
-
-  // Renderizar formulario de inicio de sesión
-  const renderSignInForm = () => (
-    <div className="auth-form">
-      <h2>Inicio de sesión</h2>
-      <input
-        name="username"
-        placeholder="Nombre de usuario"
-        value={formData.username}
-        onChange={handleInputChange}
-      />
-      <input
-        name="password"
-        type="password"
-        placeholder="Contraseña"
-        value={formData.password}
-        onChange={handleInputChange}
-      />
-      <button onClick={handleSignIn}>Iniciar sesión</button>
-      <p>
-        ¿No tienes cuenta?{" "}
-        <button className="link-button" onClick={() => setAuthState("signUp")}>
-          Regístrate
-        </button>
-      </p>
-    </div>
-  );
-
-  // Renderizar vista después de autenticación
-  const renderSignedInView = () => (
-    <div className="profile-view">
-      <h2>Bienvenido, {user?.username}!</h2>
-      <div className="user-info">
-        <p>Email: {user?.signInDetails?.loginId}</p>
-        <p>ID de usuario: {user?.userId}</p>
-      </div>
-      <button onClick={handleSignOut}>Cerrar sesión</button>
-    </div>
-  );
-
   return (
-    <main className="auth-container">
-      {error && <div className="error-message">{error}</div>}
-      
-      {authState === "signUp" && renderSignUpForm()}
-      {authState === "signIn" && renderSignInForm()}
-      {authState === "signedIn" && renderSignedInView()}
-    </main>
+    <div className={`app-container ${theme}`}>
+      <div className="theme-toggle-container">
+        <button 
+          className="theme-toggle" 
+          onClick={toggleTheme}
+          aria-label={`Cambiar a modo ${theme === 'light' ? 'oscuro' : 'claro'}`}
+          title={`Cambiar a modo ${theme === 'light' ? 'oscuro' : 'claro'}`}
+        >
+          <div className={`toggle-track ${theme}`}>
+            <div className="toggle-thumb">
+              {theme === 'light' ? "🌙" : "☀️"}
+            </div>
+          </div>
+          <span className="toggle-label">
+            {theme === 'light' ? 'Modo oscuro' : 'Modo claro'}
+          </span>
+        </button>
+      </div>
+
+      <main className="auth-container">
+        <div className="logo-container">
+          <div className="logo-animation"></div>
+          <h1 className="app-title">Auth<span>Flow</span></h1>
+        </div>
+
+        {error && (
+          <div className="error-message animate-shake">
+            <span>⚠️</span> {error}
+          </div>
+        )}
+
+        {authState === "signUp" && (
+          <div className="form-container">
+            <form onSubmit={handleSignUp} className="auth-form">
+              <h2>Crear Cuenta</h2>
+              <div className="input-group">
+                <input
+                  name="username"
+                  placeholder=" "
+                  value={formData.username}
+                  onChange={handleInputChange}
+                  required
+                />
+                <label>Nombre de usuario</label>
+              </div>
+              <div className="input-group">
+                <input
+                  name="password"
+                  type="password"
+                  placeholder=" "
+                  value={formData.password}
+                  onChange={handleInputChange}
+                  required
+                />
+                <label>Contraseña</label>
+              </div>
+              <div className="input-group">
+                <input
+                  name="email"
+                  type="email"
+                  placeholder=" "
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  required
+                />
+                <label>Email</label>
+              </div>
+              <div className="name-fields">
+                <div className="input-group">
+                  <input
+                    name="givenName"
+                    placeholder=" "
+                    value={formData.givenName}
+                    onChange={handleInputChange}
+                    required
+                  />
+                  <label>Nombre</label>
+                </div>
+                <div className="input-group">
+                  <input
+                    name="familyName"
+                    placeholder=" "
+                    value={formData.familyName}
+                    onChange={handleInputChange}
+                    required
+                  />
+                  <label>Apellido</label>
+                </div>
+              </div>
+              <button 
+                type="submit"
+                disabled={isLoading}
+                className={isLoading ? "loading" : ""}
+              >
+                {isLoading ? <div className="spinner"></div> : "Registrarse"}
+              </button>
+              <p className="auth-switch">
+                ¿Ya tienes cuenta?{" "}
+                <button 
+                  type="button" 
+                  onClick={() => setAuthState("signIn")}
+                  className="link-button"
+                >
+                  Inicia sesión
+                </button>
+              </p>
+            </form>
+          </div>
+        )}
+
+        {authState === "signIn" && (
+          <div className="form-container">
+            <form onSubmit={handleSignIn} className="auth-form">
+              <h2>Iniciar Sesión</h2>
+              <div className="input-group">
+                <input
+                  name="username"
+                  placeholder=" "
+                  value={formData.username}
+                  onChange={handleInputChange}
+                  required
+                />
+                <label>Nombre de usuario</label>
+              </div>
+              <div className="input-group">
+                <input
+                  name="password"
+                  type="password"
+                  placeholder=" "
+                  value={formData.password}
+                  onChange={handleInputChange}
+                  required
+                />
+                <label>Contraseña</label>
+              </div>
+              <button 
+                type="submit"
+                disabled={isLoading}
+                className={isLoading ? "loading" : ""}
+              >
+                {isLoading ? <div className="spinner"></div> : "Ingresar"}
+              </button>
+              <p className="auth-switch">
+                ¿No tienes cuenta?{" "}
+                <button 
+                  type="button" 
+                  onClick={() => setAuthState("signUp")}
+                  className="link-button"
+                >
+                  Regístrate
+                </button>
+              </p>
+            </form>
+          </div>
+        )}
+
+        {authState === "signedIn" && (
+          <div className="profile-view animate-fade-in">
+            <div className="avatar">
+              {user?.username?.charAt(0).toUpperCase()}
+            </div>
+            <h2>¡Bienvenido, {user?.username}!</h2>
+            <div className="user-details">
+              <p><span>Email:</span> {user?.signInDetails?.loginId}</p>
+              <p><span>ID:</span> {user?.userId}</p>
+            </div>
+            <button 
+              onClick={handleSignOut} 
+              disabled={isLoading}
+              className={isLoading ? "loading" : ""}
+            >
+              {isLoading ? <div className="spinner"></div> : "Cerrar sesión"}
+            </button>
+          </div>
+        )}
+      </main>
+    </div>
   );
 }
